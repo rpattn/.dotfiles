@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+URL="http://100.74.90.52:9000/hooks/wakepc"
+TOKEN="REMOVED"
+
+response=$(curl -s -X POST "$URL?token=$TOKEN")
+
+if [[ -n "$response" ]]; then
+    echo "Wake request sent."
+
+    ping 100.74.90.52
+else
+    echo "Failed to contact wake service." >&2
+    exit 1
+fi

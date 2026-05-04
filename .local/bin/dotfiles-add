@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+
+set -e
+
+dotfiles() {
+  git --git-dir="$HOME/.dotfiles/" --work-tree="$HOME" "$@"
+}
+
+echo "Detecting dotfiles..."
+
+# Safe include (broad but controlled)
+INCLUDE_REGEX='^\.[^/]+$|^\.config/|^\.local/bin/'
+
+# Sensitive paths to exclude (hard safety)
+EXCLUDE_REGEX='^\.ssh/|^\.gnupg/|^\.aws/|^\.kube/|^\.gcloud/|\.pem$|\.key$|^\.cache/|^\.local/share/|^\.local/state/'
+
+# 1. Modified tracked files
+MODIFIED=$(dotfiles ls-files --modified)
+
+# 2. Untracked dotfiles (not ignored)
+UNTRACKED=$(dotfiles ls-files --others --exclude-standard)
+
+FOUND=$(find "$HOME" \( -path "$HOME/.config/*" -o -name ".*" \) \
+  -maxdepth 3 2>/dev/null \
+  | sed "s|$HOME/||" \
+  | while read -r file; do
+      # skip if ignored
+      dotfiles check-ignore "$file" >/dev/null 2>&1 && continue
+
+      # skip if already tracked
+      dotfiles ls-files --error-unmatch "$file" >/dev/null 2>&1 && continue
+
+      echo "$file"
+    done)
+
+# Combine everything
+FILES=$(printf "%s\n%s\n%s\n" "$MODIFIED" "$UNTRACKED" "$FOUND" \
+  | sort -u \
+  | grep -E "$INCLUDE_REGEX" \
+  | grep -vE "$EXCLUDE_REGEX")
+
+if [ -z "$FILES" ]; then
+  echo "No changes or candidates found"
+  exit 0
+fi
+
+echo
+echo "Select files:"
+echo
+
+if command -v fzf >/dev/null 2>&1; then
+  SELECTED=$(echo "$FILES" | fzf -m \
+    --bind "tab:toggle+down,shift-tab:toggle+up" \
+    --preview 'git --git-dir=$HOME/.dotfiles --work-tree=$HOME diff --color=always -- {} 2>/dev/null || cat $HOME/{} 2>/dev/null')
+else
+  echo "$FILES"
+  echo
+  read -p "Enter files (space-separated): " SELECTED
+fi
+
+if [ -z "$SELECTED" ]; then
+  echo "Nothing selected"
+  exit 0
+fi
+
+echo
+echo "Adding files..."
+
+# Safety check function
+is_sensitive() {
+  echo "$1" | grep -qE "$EXCLUDE_REGEX"
+}
+
+# Add files
+echo "$SELECTED" | while IFS= read -r file; do
+  if is_sensitive "$file"; then
+    echo "Skipping sensitive: $file"
+    continue
+  fi
+  dotfiles add "$HOME/$file"
+done
+
+# Commit message suggestion
+suggest_commit_msg() {
+  local files="$1"
+  local first_file
+  local count
+
+  first_file=$(echo "$files" | head -n1 | sed 's|.*/||')
+  count=$(echo "$files" | wc -l)
+
+  # Detect if ANY file is already tracked (modified)
+  local has_tracked=false
+  while IFS= read -r file; do
+    if dotfiles ls-files --error-unmatch "$file" >/dev/null 2>&1; then
+      has_tracked=true
+      break
+    fi
+  done <<< "$files"
+
+  local action="add"
+  if [ "$has_tracked" = true ]; then
+    action="update"
+  fi
+
+  # Tool detection
+  if echo "$files" | grep -qE '^\.zsh'; then
+    echo "zsh: $action config"
+  elif echo "$files" | grep -qE '^\.config/nvim'; then
+    echo "nvim: $action config"
+  elif echo "$files" | grep -qE '^\.gitconfig'; then
+    echo "git: $action config"
+  elif echo "$files" | grep -qE '^\.tmux'; then
+    echo "tmux: $action config"
+  else
+    if [ "$count" -eq 1 ]; then
+      echo "$action $first_file"
+    else
+      local rest=$((count - 1))
+      echo "$action $first_file +$rest files"
+    fi
+  fi
+}
+
+echo
+SUGGESTED=$(suggest_commit_msg "$SELECTED")
+
+echo "Suggested: $SUGGESTED"
+read -p "Commit message (enter to accept): " MSG
+
+if [ -z "$MSG" ]; then
+  MSG="$SUGGESTED"
+fi
+
+dotfiles commit -m "$MSG"
+
+echo
+read -p "Push to remote? (y/N): " PUSH
+
+if [[ "$PUSH" =~ ^[Yy]$ ]]; then
+  dotfiles push
+fi
+
+echo "Done"
