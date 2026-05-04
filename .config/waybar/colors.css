@@ -1,0 +1,26 @@
+/* base palette */
+@define-color primary #e5ecff;
+@define-color secondary #eaeaff;
+@define-color tertiary #efe9ff;
+
+@define-color on_surface #ffffff;
+@define-color on_primary #000000;
+
+@define-color error #ffe6e3;
+@define-color outline #e0e3f0;
+
+/* ======================
+   OVERRIDES (GTK-safe)
+====================== */
+
+/* strong readable accents */
+@define-color accent #89b4fa;
+@define-color accent_alt #b4befe;
+
+@define-color success #a6e3a1;
+@define-color warning #f9e2af;
+@define-color critical #f38ba8;
+
+/* UI helpers */
+@define-color surface_strong #1e2230;
+@define-color border #6c7086;

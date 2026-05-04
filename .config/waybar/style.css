@@ -1,0 +1,120 @@
+/* ======================
+   MATUGEN IMPORT (must be first)
+====================== */
+@import "/home/rpattn/.config/waybar/colors.css";
+
+/* ======================
+   COLORS (fixed + overrides)
+====================== */
+@define-color bg alpha(@background, 0.9);
+@define-color text @on_surface;
+
+/* ======================
+   GLOBAL
+====================== */
+* {
+    font-family: "JetBrainsMono Nerd Font", sans-serif;
+    font-size: 14px;
+    border: none;
+    min-height: 0;
+}
+
+window#waybar {
+    background: alpha(@background, 0.85);
+    color: @on_surface;
+    padding: 6px 4px;
+}
+
+/* ======================
+   ULTRA MINIMAL MODULES
+====================== */
+#pulseaudio,
+#network,
+#cpu,
+#memory,
+#battery,
+#custom-powerprofile,
+#custom-power,
+#clock,
+#tray {
+    padding: 2px 2px;
+}
+
+/* ======================
+   WORKSPACES
+====================== */
+#workspaces {
+    padding: 0;
+}
+
+#workspaces button {
+    padding: 2px;
+    margin: 2px 0;
+    color: @outline;   /* visible inactive */
+}
+
+#workspaces button.active {
+    color: @accent;
+    font-weight: bold;
+}
+
+#workspaces button.urgent {
+    color: @critical;
+}
+
+/* ======================
+   MODULE COLORS (fixed)
+====================== */
+#clock {
+    color: @accent;
+    font-weight: bold;
+}
+
+#cpu { color: @accent; }
+#memory { color: @success; }
+#network { color: @warning; }
+
+#network.disconnected { color: @critical; }
+
+#pulseaudio { color: @accent; }
+#pulseaudio.muted { color: @critical; }
+
+#battery { color: @accent; }
+#battery.charging { color: @success; }
+#battery.warning { color: @warning; }
+#battery.critical:not(.charging) { color: @critical; }
+
+/* power profile */
+#custom-powerprofile {
+    color: @accent;
+    font-size: 11px;
+}
+
+/* power button */
+#custom-power {
+    color: @critical;
+    font-size: 13px;
+}
+
+/* ======================
+   HOVER (minimal)
+====================== */
+#custom-power:hover,
+#custom-powerprofile:hover,
+#clock:hover {
+    background: alpha(@accent, 0.15);
+    border-radius: 6px;
+}
+
+/* ======================
+   TOOLTIP
+====================== */
+tooltip {
+    background: @background;
+    border: 1px solid @accent;
+    border-radius: 8px;
+}
+
+tooltip label {
+    color: @text;
+}
