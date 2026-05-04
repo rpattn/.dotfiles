@@ -36,6 +36,7 @@
 .zsh_history
 .bash_history
 .history
+.histfile
 
 # =========================
 # PACKAGE MANAGERS / RUNTIMES
