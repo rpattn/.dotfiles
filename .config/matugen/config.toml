@@ -1,0 +1,49 @@
+[config]
+version_check = false
+
+# Better fallback (slightly brighter, more usable)
+fallback_color = "#3b82f6"
+
+# Pick better colors automatically
+prefer = "saturation"
+
+caching = true
+
+# Slightly softer contrast (easier on eyes)
+contrast = 0.9
+
+
+# ======================
+# WAYBAR
+# ======================
+[templates.waybar]
+type = "SchemeVibrant"
+input_path = "/home/rpattn/.config/matugen/templates/colors.css"
+output_path = "/home/rpattn/.config/waybar/colors.css"
+
+# smoother restart (prevents glitches)
+post_hook = "pkill waybar; sleep 0.2; waybar &"
+
+
+# ======================
+# KITTY
+# ======================
+[templates.kitty]
+type = "SchemeExpressive"
+input_path = "/home/rpattn/.config/matugen/templates/kitty.conf"
+output_path = "/home/rpattn/.config/kitty/colors.conf"
+
+# safe apply (no crash if no instance)
+post_hook = "kitty @ set-colors -a /home/rpattn/.config/kitty/colors.conf || true"
+
+
+# ======================
+# NVIM
+# ======================
+[templates.nvim]
+type = "SchemeExpressive"
+input_path = "/home/rpattn/.config/matugen/templates/nvim.lua"
+output_path = "/home/rpattn/.config/nvim/lua/theme/colors.lua"
+
+# lightweight reload (doesn't hang)
+post_hook = "nvim --headless +\"lua local ok,m=require('theme.matugen'); if ok then m.apply() end\" +q"
