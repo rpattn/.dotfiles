@@ -52,6 +52,8 @@ eval "$(starship init zsh)"
 # nvm lazy load
 export NVM_DIR="$HOME/.nvm"
 
+[ -f ~/.env.local ] && source ~/.env.local
+
 nvm() {
   unset -f nvm node npm npx
   [[ -s /usr/share/nvm/init-nvm.sh ]] && source /usr/share/nvm/init-nvm.sh

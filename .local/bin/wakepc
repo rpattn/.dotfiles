@@ -3,7 +3,7 @@
 set -euo pipefail
 
 URL="http://100.74.90.52:9000/hooks/wakepc"
-TOKEN="REMOVED"
+TOKEN="${WAKE_TOKEN:?missing_token}"
 
 response=$(curl -s -X POST "$URL?token=$TOKEN")
 
