@@ -1,0 +1,138 @@
+# =========================
+# SENSITIVE / SECRETS
+# =========================
+.ssh/
+.gnupg/
+.aws/
+.azure/
+.kube/
+.gcloud/
+.docker/
+.netrc
+.pki/
+
+# Keys / certs / credentials
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+*.der
+*.ovpn
+*.kdbx
+
+# Env / secrets files
+.env
+.env.*
+.envrc
+*.secret
+*.secrets
+*.token
+*.tokens
+*.credentials
+
+# Shell history
+.zsh_history
+.bash_history
+.history
+.histfile
+
+# =========================
+# PACKAGE MANAGERS / RUNTIMES
+# =========================
+.npm/
+.node_modules/
+.nvm/
+.yarn/
+.pnpm-store/
+.cargo/
+cargo/
+.rustup/
+.pub-cache/
+.gradle/
+.m2/
+.ivy2/
+
+# =========================
+# CACHE / STATE
+# =========================
+.cache/
+.local/share/
+.local/state/
+.var/
+.tmp/
+.temp/
+
+# =========================
+# APPLICATION DATA (NOISY / SENSITIVE)
+# =========================
+.mozilla/
+.config/mozilla/
+.config/google-chrome/
+.config/chromium/
+.config/BraveSoftware/
+.config/discord/
+.config/Slack/
+.config/Code/Cache/
+.config/Code/CachedData/
+.config/Code/User/workspaceStorage/
+
+# Language / tool specific
+.config/go/
+.config/pulse/
+.config/systemd/
+
+# =========================
+# DEVELOPMENT / BUILD OUTPUT
+# =========================
+dist/
+build/
+target/
+out/
+coverage/
+*.log
+*.tmp
+*.swp
+*.swo
+
+# =========================
+# USER DIRECTORIES
+# =========================
+Desktop/
+Documents/
+Downloads/
+Music/
+Pictures/
+Videos/
+Public/
+Templates/
+
+# =========================
+# DEV / WORK DIRS
+# =========================
+Projects/
+projects/
+dev/
+workspace/
+work/
+go/
+
+# =========================
+# DOTFILES REPO ITSELF
+# =========================
+.dotfiles/
+
+# =========================
+# OS / EDITOR JUNK
+# =========================
+.DS_Store
+Thumbs.db
+*~
+*.bak
+
+# =========================
+# OPTIONAL (UNCOMMENT IF NEEDED)
+# =========================
+# .local/bin/        # if you store scripts elsewhere
+# .config/           # only if you switch to strict whitelist
