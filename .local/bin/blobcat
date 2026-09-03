@@ -1,0 +1,400 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+directory="."
+requested_extensions=()
+limit=15
+copy_all=false
+view=false
+line_numbers=true
+condensed=false
+context_lines=2
+directory_set=false
+
+usage() {
+    cat <<'EOF'
+blobcat - concatenate project files from a Git repository
+
+Usage:
+  blobcat [directory] [options]
+
+Options:
+  -d, --dir DIR             Directory to search. Default: current directory
+  -e, --ext EXT[,EXT...]    File extensions. May be repeated. Default: py
+  -a, --all                 Include all matching files instead of first 15
+      --limit N             Change the default file limit
+  -c, --condensed           Condense Python files to structural lines + context
+      --context N           Lines before/after matches. Default: 2
+  -v, --view                Print to terminal instead of clipboard
+      --no-line-numbers     Disable line numbers
+  -h, --help                Show this help
+
+Examples:
+  blobcat
+  blobcat src
+  blobcat -e py,yaml
+  blobcat -e py -e json -e toml --all
+  blobcat src -e py --condensed
+  blobcat src -e py --condensed --context 4
+  blobcat --view
+
+Extension aliases:
+  yaml / yml    matches both .yaml and .yml
+EOF
+}
+
+add_extensions() {
+    local value="$1"
+    local item
+
+    IFS=',' read -ra items <<< "$value"
+
+    for item in "${items[@]}"; do
+        item="${item#.}"
+        item="${item,,}"
+
+        [[ -n "$item" ]] && requested_extensions+=("$item")
+    done
+}
+
+while (($#)); do
+    case "$1" in
+        -a|--all)
+            copy_all=true
+            shift
+            ;;
+
+        -v|--view)
+            view=true
+            shift
+            ;;
+
+        -c|--condensed)
+            condensed=true
+            shift
+            ;;
+
+        --no-line-numbers)
+            line_numbers=false
+            shift
+            ;;
+
+        -e|--ext|--extension)
+            [[ $# -ge 2 ]] || {
+                echo "$1 requires one or more extensions" >&2
+                exit 2
+            }
+
+            add_extensions "$2"
+            shift 2
+            ;;
+
+        -d|--dir|--directory)
+            [[ $# -ge 2 ]] || {
+                echo "$1 requires a directory" >&2
+                exit 2
+            }
+
+            directory="$2"
+            directory_set=true
+            shift 2
+            ;;
+
+        --limit)
+            [[ $# -ge 2 ]] || {
+                echo "--limit requires a number" >&2
+                exit 2
+            }
+
+            limit="$2"
+
+            [[ "$limit" =~ ^[1-9][0-9]*$ ]] || {
+                echo "--limit must be a positive integer" >&2
+                exit 2
+            }
+
+            shift 2
+            ;;
+
+        --context)
+            [[ $# -ge 2 ]] || {
+                echo "--context requires a number" >&2
+                exit 2
+            }
+
+            context_lines="$2"
+
+            [[ "$context_lines" =~ ^[0-9]+$ ]] || {
+                echo "--context must be zero or greater" >&2
+                exit 2
+            }
+
+            shift 2
+            ;;
+
+        -h|--help)
+            usage
+            exit 0
+            ;;
+
+        -*)
+            echo "Unknown option: $1" >&2
+            exit 2
+            ;;
+
+        *)
+            if $directory_set; then
+                echo "Only one directory may be specified" >&2
+                exit 2
+            fi
+
+            directory="$1"
+            directory_set=true
+            shift
+            ;;
+    esac
+done
+
+if (( ${#requested_extensions[@]} == 0 )); then
+    requested_extensions=("py")
+fi
+
+extensions=()
+
+add_unique_extension() {
+    local candidate="$1"
+    local existing
+
+    for existing in "${extensions[@]}"; do
+        [[ "$existing" == "$candidate" ]] && return
+    done
+
+    extensions+=("$candidate")
+}
+
+for ext in "${requested_extensions[@]}"; do
+    case "$ext" in
+        yaml|yml)
+            add_unique_extension "yaml"
+            add_unique_extension "yml"
+            ;;
+        *)
+            add_unique_extension "$ext"
+            ;;
+    esac
+done
+
+matches_extension() {
+    local path="$1"
+    local ext="${path##*.}"
+    local wanted
+
+    ext="${ext,,}"
+
+    for wanted in "${extensions[@]}"; do
+        [[ "$ext" == "$wanted" ]] && return 0
+    done
+
+    return 1
+}
+
+write_full_file() {
+    local file="$1"
+
+    if $line_numbers; then
+        awk '{
+            lines[NR] = $0
+        }
+        END {
+            width = length(NR)
+
+            for (i = 1; i <= NR; i++) {
+                printf "%*d | %s\n", width, i, lines[i]
+            }
+        }' "$file"
+    else
+        cat "$file"
+
+        if [[ -s "$file" ]] && [[ "$(tail -c 1 "$file" | wc -l)" -eq 0 ]]; then
+            printf '\n'
+        fi
+    fi
+}
+
+write_condensed_python() {
+    local file="$1"
+    local context="$2"
+
+    awk \
+        -v context="$context" \
+        -v numbers="$line_numbers" \
+        '
+        {
+            lines[NR] = $0
+
+            if ($0 ~ /^[[:space:]]*(from[[:space:]]+[^[:space:]]+[[:space:]]+import([[:space:]]|$)|import[[:space:]]+|@[A-Za-z_]|class[[:space:]]+[A-Za-z_]|(async[[:space:]]+)?def[[:space:]]+[A-Za-z_])/) {
+                matched[NR] = 1
+            }
+        }
+
+        END {
+            if (NR == 0) {
+                exit
+            }
+
+            for (line in matched) {
+                start = line - context
+                end = line + context
+
+                if (start < 1) {
+                    start = 1
+                }
+
+                if (end > NR) {
+                    end = NR
+                }
+
+                for (i = start; i <= end; i++) {
+                    keep[i] = 1
+                }
+            }
+
+            found = 0
+
+            for (i = 1; i <= NR; i++) {
+                if (keep[i]) {
+                    found = 1
+                    break
+                }
+            }
+
+            if (!found) {
+                print "[no structural Python matches]"
+                exit
+            }
+
+            width = length(NR)
+            previous = 0
+
+            for (i = 1; i <= NR; i++) {
+                if (!keep[i]) {
+                    continue
+                }
+
+                if (previous && i > previous + 1) {
+                    print "..."
+                }
+
+                if (numbers == "true") {
+                    printf "%*d | %s\n", width, i, lines[i]
+                } else {
+                    print lines[i]
+                }
+
+                previous = i
+            }
+        }
+        ' "$file"
+}
+
+target="$(cd "$directory" && pwd -P)"
+
+repo_root="$(git -C "$target" rev-parse --show-toplevel 2>/dev/null)" || {
+    echo "Not inside a Git repository: $target" >&2
+    exit 1
+}
+
+repo_root="$(cd "$repo_root" && pwd -P)"
+
+if [[ "$target" == "$repo_root" ]]; then
+    target_relative="."
+else
+    target_relative="${target#"$repo_root"/}"
+fi
+
+files=()
+
+while IFS= read -r -d '' file; do
+    if matches_extension "$file"; then
+        files+=("$file")
+    fi
+done < <(
+    git -C "$repo_root" \
+        ls-files \
+        --cached \
+        --others \
+        --exclude-standard \
+        -z \
+        -- \
+        "$target_relative"
+)
+
+total_matching="${#files[@]}"
+
+if ! $copy_all && (( ${#files[@]} > limit )); then
+    files=("${files[@]:0:limit}")
+fi
+
+if (( ${#files[@]} == 0 )); then
+    extension_summary="$(IFS=,; echo "${extensions[*]}")"
+    echo "No matching files [$extension_summary] found under $target" >&2
+    exit 1
+fi
+
+tmp="$(mktemp)"
+trap 'rm -f "$tmp"' EXIT
+
+for repo_relative_path in "${files[@]}"; do
+    full_path="$repo_root/$repo_relative_path"
+
+    if [[ "$target" == "$repo_root" ]]; then
+        display_path="$repo_relative_path"
+    else
+        display_path="${full_path#"$target"/}"
+    fi
+
+    file_extension="${full_path##*.}"
+    file_extension="${file_extension,,}"
+
+    printf '===== ./%s =====\n' "$display_path" >> "$tmp"
+
+    if $condensed && [[ "$file_extension" == "py" ]]; then
+        write_condensed_python \
+            "$full_path" \
+            "$context_lines" >> "$tmp"
+    else
+        write_full_file "$full_path" >> "$tmp"
+    fi
+
+    printf '\n' >> "$tmp"
+done
+
+if $view; then
+    cat "$tmp"
+    exit 0
+fi
+
+if command -v wl-copy >/dev/null 2>&1; then
+    wl-copy < "$tmp"
+elif command -v pbcopy >/dev/null 2>&1; then
+    pbcopy < "$tmp"
+elif command -v xclip >/dev/null 2>&1; then
+    xclip -selection clipboard < "$tmp"
+elif command -v xsel >/dev/null 2>&1; then
+    xsel --clipboard --input < "$tmp"
+elif command -v clip.exe >/dev/null 2>&1; then
+    clip.exe < "$tmp"
+else
+    echo "No clipboard utility found. Use --view instead." >&2
+    exit 1
+fi
+
+count="${#files[@]}"
+extension_summary="$(IFS=,; echo "${extensions[*]}")"
+
+if ! $copy_all && (( total_matching > limit )); then
+    echo "Copied $count of $total_matching matching files [$extension_summary]. Use --all for all files."
+else
+    echo "Copied $count matching files [$extension_summary] to clipboard."
+fi
