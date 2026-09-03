@@ -23,3 +23,11 @@ mkdir -p ~/Shared
 
 systemctl --user enable --now syncthing.service
 sudo loginctl enable-linger $USER
+
+
+# FEDORA
+
+# sudo dnf install syncthing
+# mkdir -p ~/Shared
+# systemctl --user enable --now syncthing.service
+# sudo loginctl enable-linger $USER
