@@ -1,4 +1,5 @@
 function blobcat { & "$HOME\dev\bin\blobcat.ps1" @args }
+function wakepc { & "$HOME\dev\bin\wakepc.ps1"}
 
 Set-Alias c Clear-Host
 Set-Alias c Clear-Host
